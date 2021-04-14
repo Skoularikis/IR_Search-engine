@@ -16,6 +16,7 @@ def results():
     if request.method == 'POST':
         search_term = request.form["input"]
         res = elasticsearch_operations.search_in_elasticsearch(search_term)
+        # res = elasticsearch_operations.cosine_similarity_search(search_term)
         return render_template("result.html", search_term=search_term, res=res)
 
 
