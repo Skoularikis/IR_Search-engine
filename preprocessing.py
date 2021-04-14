@@ -5,7 +5,6 @@ from nltk.corpus import stopwords
 import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-
 # Run this if running into errors. Not needed every run
 # import nltk
 # nltk.download('stopwords')
@@ -63,22 +62,24 @@ def remove_stopwords(df):
 
 def tf_idf_vctrz(df):
     vectrzr = TfidfVectorizer()
-    vector = vectrzr.fit_transform(df['book_desc2'])
+    vector = vectrzr.fit_transform(df['book_desc'])
     vec_array = vector.toarray()
-    df['desc_vec'] = pd.DataFrame(((x,) for x in vec_array), columns=['lists'])
+    df['desc_vec_sparse'] = pd.DataFrame(((x,) for x in vec_array), columns=['lists'])
 
     return df
 
-
-# Testing
 # df = read_csv()
-# columns_to_drop = ["book_edition", "book_format", "image_url", "book_rating_count", "book_review_count",
-#                    "book_pages"]
-# # df = drop_columns(df, columns_to_drop)
-# # df = drop_no_english_sentences(df)
-# df = remove_stopwords(df)
 # df = tf_idf_vctrz(df)
-# print(df['desc_vec'][0])
+# print(df['desc_vec'].shape)
+# Testing
+df = read_csv()
+columns_to_drop = ["book_edition", "book_format", "image_url", "book_rating_count", "book_review_count",
+                   "book_pages"]
+# df = drop_columns(df, columns_to_drop)
+# df = drop_no_english_sentences(df)
+df = df[df['book_desc'].notnull()]
+df = tf_idf_vctrz(df)
+print(df['desc_vec_sparse'][3].shape)
 #
 # df.to_csv('./test.csv')
 

@@ -22,8 +22,8 @@ def results():
 
 if __name__ == '__main__':
     # create_model()
-    if not elasticsearch_operations.check_if_index_exist("books"):
-        elasticsearch_operations.upload_data_to_elastic()
+    # if not elasticsearch_operations.check_if_index_exist("books"):
+    #     elasticsearch_operations.upload_data_to_elastic()
     app.debug = True
     app.run()
     app.run(debug=True)
