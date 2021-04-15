@@ -9,11 +9,72 @@ import preprocessing
 
 es = Elasticsearch([{'host': 'localhost', 'port': '9200'}])
 # url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-model = hub.load("./model")
+# model = hub.load("./model")
 index_name = 'book_test'
+tf_idf_index_name = "books_tf_idf"
 
 def check_if_index_exist(index):
     return es.indices.exists(index=index_name)
+
+def create_tf_idf_index():
+    # Define the index mapping
+    config = {
+        "settings": {
+            "number_of_shards": 1,
+            "similarity": {
+                "scripted_tfidf": {
+                    "type": "scripted",
+                    "script": {
+                        "source": "double tf = Math.sqrt(doc.freq); double idf = Math.log((field.docCount+1.0)/(term.docFreq+1.0)) + 1.0; double norm = 1/Math.sqrt(doc.length); return query.boost * tf * idf * norm;"
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "properties": {
+                "book_authors": {
+                    "type": "text",
+                    "similarity": "scripted_tfidf"
+                },
+                "book_desc": {
+                    "type": "text",
+                    "similarity": "scripted_tfidf"
+                },
+                "book_isbn": {
+                    "type": "text"
+                },
+                "book_rating": {
+                    "type": "float"
+                },
+                "book_title": {
+                    "type": "text",
+                    "similarity": "scripted_tfidf"
+                },
+                "genres": {
+                    "type": "text"
+                },
+            }
+        }
+    }
+    try:
+        # Create the index if not exists
+        if not es.indices.exists(tf_idf_index_name):
+            # Ignore 400 means to ignore "Index Already Exist" error.
+            es.indices.create(
+                index=tf_idf_index_name, body=config
+            )
+            print("Created Index -> ", tf_idf_index_name)
+        else:
+            print("Index " + tf_idf_index_name + " exists...")
+    except Exception as ex:
+        print(str(ex))
+
+def upload_books_tf_idf():
+    df = preprocessing.read_csv()
+    parsed = preprocessing.load_json(df)
+    create_tf_idf_index()
+    upload_data_to_elastic(parsed, tf_idf_index_name)
+
 
 def create_book_test_index():
     # Define the index mapping
@@ -76,7 +137,7 @@ def insert_qa(body):
 def process_books():
     df = preprocessing.read_csv()
     df.dropna(inplace=True, subset=["book_desc"])
-    df['desc_vec_dense'] = df['book_desc'].apply(lambda x: np.asarray(model([x])[0]).tolist())
+    # df['desc_vec_dense'] = df['book_desc'].apply(lambda x: np.asarray(model([x])[0]).tolist())
     parsed = preprocessing.load_json(df)
     upload_data_to_elastic(parsed)
     print("\nIndexing QA's...")
@@ -93,7 +154,7 @@ def process_books():
     #         # 'q_id': index
     #     })
 
-def upload_data_to_elastic(parsed):
+def upload_data_to_elastic(parsed, index_name):
     # # Change the filepath to your filepath
     # df = preprocessing.read_csv()
     # # Drop all unused columns
@@ -109,7 +170,7 @@ def upload_data_to_elastic(parsed):
     for i in range(0, len(parsed['data'])):
         source = parsed['data'][i]
         entry = {
-            "_index": "books",
+            "_index": index_name,
             "_id": i,
             "_source": source
         }
@@ -120,9 +181,7 @@ def upload_data_to_elastic(parsed):
     if len(entries) > 0:
         helpers.bulk(es, entries)
 
-    # Get one random result
-    # res = es.get(index='test_index', id=0)
-    # print(res['_source'])
+
 
 def search_in_elasticsearch(search_term):
     res = es.search(
@@ -148,8 +207,9 @@ def cosine_similarity_search(search_term):
     # search_term = [search_term]
     # query_vec = v.fit_transform(search_term)
     # query_vec = query_vec.toarray()
-    query_vec = np.asarray(model([search_term])).tolist()
 
+    # query_vec = np.asarray(model([search_term])).tolist()
+    query_vec = "asd"
     res = es.search(
         index="books",
         size=20,
@@ -169,6 +229,8 @@ def cosine_similarity_search(search_term):
     )
     return res
 
-print(cosine_similarity_search("Harry Potter"))
+
+upload_books_tf_idf()
+# print(cosine_similarity_search("Harry Potter"))
 
 # process_books()
