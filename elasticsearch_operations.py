@@ -8,8 +8,8 @@ from tqdm import tqdm
 import preprocessing
 
 es = Elasticsearch([{'host': 'localhost', 'port': '9200'}])
-url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-model = hub.load(url)
+# url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+model = hub.load("./model")
 index_name = 'book_test'
 
 def check_if_index_exist(index):
@@ -45,10 +45,10 @@ def create_book_test_index():
                 #     "type": "sparse_vector",
                 #     "dims": 18333
                 # },
-                "desc_vec_dense": {
-                    "type": "dense_vector",
-                    "dims": 512
-                }
+                # "desc_vec_dense": {
+                #     "type": "dense_vector",
+                #     "dims": 512
+                # }
             }
         }
     }
@@ -75,10 +75,11 @@ def insert_qa(body):
 
 def process_books():
     df = preprocessing.read_csv()
-    df['desc_vec_dense'] = df['book_desc'].apply(lambda x: model([x])[0].tolist())
+    df.dropna(inplace=True, subset=["book_desc"])
+    df['desc_vec_dense'] = df['book_desc'].apply(lambda x: np.asarray(model([x])[0]).tolist())
     parsed = preprocessing.load_json(df)
     upload_data_to_elastic(parsed)
-    # print("\nIndexing QA's...")
+    print("\nIndexing QA's...")
     # for index, row in tqdm(df.iterrows()):
     #     # Index each qa pair along with the question id and embedding
     #     insert_qa({
@@ -88,8 +89,8 @@ def process_books():
     #         'book_rating': row['book_rating'],
     #         'book_title': row['book_title'],
     #         'genres': row['genres'],
-    #         'desc_vec_dense': np.asarray(model([row['book_desc']])[0]).tolist(),
-    #         '_id': index
+    #         # 'desc_vec_dense': np.asarray(model([row['book_desc']])[0]).tolist(),
+    #         # 'q_id': index
     #     })
 
 def upload_data_to_elastic(parsed):
@@ -143,10 +144,11 @@ def search_in_elasticsearch(search_term):
     return res
 
 def cosine_similarity_search(search_term):
-    v = TfidfVectorizer()
-    search_term = [search_term]
-    query_vec = v.fit_transform(search_term)
-    query_vec = query_vec.toarray()
+    # v = TfidfVectorizer()
+    # search_term = [search_term]
+    # query_vec = v.fit_transform(search_term)
+    # query_vec = query_vec.toarray()
+    query_vec = np.asarray(model([search_term])).tolist()
 
     res = es.search(
         index="books",
@@ -158,16 +160,15 @@ def cosine_similarity_search(search_term):
                         "match_all": {}
                     },
                     "script": {
-                        "source": "cosineSimilarity(params.query_vector, 'desc_vec') + 1.0",
+                        "source": "cosineSimilarity(params.query_vector, 'desc_vec_dense') + 1.0",
                         "params": {"query_vector": query_vec}
                     }
                 }
             }
         }
     )
-
     return res
 
-# cosine_similarity_search("this is a test")
+print(cosine_similarity_search("Harry Potter"))
 
-process_books()
+# process_books()
