@@ -3,6 +3,9 @@ from elasticsearch import Elasticsearch
 import elasticsearch_operations
 
 app = Flask(__name__)
+# Load configs
+app.config.from_object('config.Config')
+app.config['DEBUG']=True
 es = Elasticsearch([{'host': 'localhost', 'port': '9200'}])
 
 
@@ -15,15 +18,12 @@ def search():
 def results():
     if request.method == 'POST':
         search_term = request.form["input"]
-        res = elasticsearch_operations.search_in_elasticsearch(search_term)
-        # res = elasticsearch_operations.cosine_similarity_search(search_term)
-        return render_template("result.html", search_term=search_term, res=res)
+        res_default = elasticsearch_operations.search_in_elasticsearch_with_default_index(search_term)
+        res = elasticsearch_operations.search_in_elasticsearch_with_tf_idf(search_term)
+
+        res_universal = elasticsearch_operations.search_in_elasticsearch_with_universal_index(search_term)
+        return render_template("result.html", search_term=search_term, res_default=res_default, res=res, res_universal=res_universal)
 
 
 if __name__ == '__main__':
-    # create_model()
-    # if not elasticsearch_operations.check_if_index_exist("books"):
-    #     elasticsearch_operations.upload_data_to_elastic()
-    app.debug = True
     app.run()
-    app.run(debug=True)

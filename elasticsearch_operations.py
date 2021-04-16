@@ -1,20 +1,14 @@
 import numpy as np
 import tensorflow_hub as hub
 from elasticsearch import Elasticsearch, helpers
-from sklearn.feature_extraction.text import TfidfVectorizer
-# from word_embeddings.universal import use_universal_model, get_Model
-from tqdm import tqdm
-
 import preprocessing
 
 es = Elasticsearch([{'host': 'localhost', 'port': '9200'}])
-# url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-# model = hub.load("./model")
-index_name = 'book_test'
+default_index = 'books_default_index'
+universal_index_name = 'book_universal'
 tf_idf_index_name = "books_tf_idf"
-
-def check_if_index_exist(index):
-    return es.indices.exists(index=index_name)
+url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+model = hub.load("../model")
 
 def create_tf_idf_index():
     # Define the index mapping
@@ -53,6 +47,9 @@ def create_tf_idf_index():
                 "genres": {
                     "type": "text"
                 },
+                "book_desc_original": {
+                    "type": "text"
+                }
             }
         }
     }
@@ -69,14 +66,7 @@ def create_tf_idf_index():
     except Exception as ex:
         print(str(ex))
 
-def upload_books_tf_idf():
-    df = preprocessing.read_csv()
-    parsed = preprocessing.load_json(df)
-    create_tf_idf_index()
-    upload_data_to_elastic(parsed, tf_idf_index_name)
-
-
-def create_book_test_index():
+def create_universal_index():
     # Define the index mapping
     mapping = {
         "mappings": {
@@ -99,73 +89,58 @@ def create_book_test_index():
                 "genres": {
                     "type": "text"
                 },
-                # "book_desc2": {
-                #     "type": "text"
-                # },
-                # "desc_vec_sparse": {
-                #     "type": "sparse_vector",
-                #     "dims": 18333
-                # },
-                # "desc_vec_dense": {
-                #     "type": "dense_vector",
-                #     "dims": 512
-                # }
+                "book_desc_original": {
+                    "type": "text"
+                },
+                "desc_vec_dense": {
+                    "type": "dense_vector",
+                    "dims": 512
+                },
+
             }
         }
     }
     try:
         # Create the index if not exists
-        if not es.indices.exists(index_name):
+        if not es.indices.exists(universal_index_name):
             # Ignore 400 means to ignore "Index Already Exist" error.
             es.indices.create(
-                index=index_name, body=mapping  # ignore=[400, 404]
+                index=universal_index_name, body=mapping  # ignore=[400, 404]
             )
-            print("Created Index -> ", index_name)
+            print("Created Index -> ", universal_index_name)
         else:
             print("Index book test exists...")
     except Exception as ex:
         print(str(ex))
 
-
-def insert_qa(body):
-    if not es.indices.exists(index_name):
-        create_book_test_index()
-    # Insert a record into the es index
-    es.index(index=index_name, body=body)
-
-
-def process_books():
-    df = preprocessing.read_csv()
+def upload_to_default_index():
+    df = preprocessing.read_csv('preprocessed_book_data_final.csv')
     df.dropna(inplace=True, subset=["book_desc"])
-    # df['desc_vec_dense'] = df['book_desc'].apply(lambda x: np.asarray(model([x])[0]).tolist())
     parsed = preprocessing.load_json(df)
-    upload_data_to_elastic(parsed)
-    print("\nIndexing QA's...")
-    # for index, row in tqdm(df.iterrows()):
-    #     # Index each qa pair along with the question id and embedding
-    #     insert_qa({
-    #         'book_authors': row['book_authors'],
-    #         'book_desc': row['book_desc'],
-    #         'book_isbn': row['book_isbn'],
-    #         'book_rating': row['book_rating'],
-    #         'book_title': row['book_title'],
-    #         'genres': row['genres'],
-    #         # 'desc_vec_dense': np.asarray(model([row['book_desc']])[0]).tolist(),
-    #         # 'q_id': index
-    #     })
+    es.indices.create(default_index)
+    print("Created Index -> ", default_index)
+    upload_data_to_elastic(parsed, default_index)
+    print("\n Uploaded to elasticsearch with index", default_index)
+
+def upload_to_elasticsearch_with_tf_idf():
+    df = preprocessing.read_csv('preprocessed_book_data_final.csv')
+    df.dropna(inplace=True, subset=["book_desc"])
+    parsed = preprocessing.load_json(df)
+    create_tf_idf_index()
+    upload_data_to_elastic(parsed, tf_idf_index_name)
+    print("\n Uploaded to elasticsearch with index", tf_idf_index_name)
+
+def upload_to_elasticsearch_with_universal():
+
+    df = preprocessing.read_csv('preprocessed_book_data_final.csv')
+    df.dropna(inplace=True, subset=["book_desc"])
+    df['desc_vec_dense'] = df['book_desc'].apply(lambda x: np.squeeze(np.asarray(model([x])[0])))
+    parsed = preprocessing.load_json(df)
+    create_universal_index()
+    upload_data_to_elastic(parsed, universal_index_name)
+    print("\n Uploaded to elasticsearch with index", universal_index_name)
 
 def upload_data_to_elastic(parsed, index_name):
-    # # Change the filepath to your filepath
-    # df = preprocessing.read_csv()
-    # # Drop all unused columns
-    # columns_to_drop = ["book_edition", "book_format", "image_url", "book_rating_count", "book_review_count",
-    #                    "book_pages"]
-    # # df = preprocessing.drop_columns(df, columns_to_drop)
-    # # df = preprocessing.drop_no_english_sentences(df)
-    # df = preprocessing.remove_stopwords(df)
-    # df = preprocessing.tf_idf_vctrz(df)
-    # # Transform the DataFrame to json string
-    # parsed = preprocessing.load_json(df)
     entries = []
     for i in range(0, len(parsed['data'])):
         source = parsed['data'][i]
@@ -181,56 +156,94 @@ def upload_data_to_elastic(parsed, index_name):
     if len(entries) > 0:
         helpers.bulk(es, entries)
 
-
-
-def search_in_elasticsearch(search_term):
-    res = es.search(
-        index="books",
-        size=20,
+def search_in_elasticsearch_with_default_index(search_term):
+    result = es.search(
+        index=default_index,
         body={
-            "query": {
-                "multi_match": {
-                    "query": search_term,
-                    "fields": [
-                        "book_authors",
-                        "book_desc",
-                        "book_title"
-                    ]
-                }
-            }
+          "query": {
+              "multi_match": {
+                  "query": search_term,
+                  "fields": [
+                      "book_authors",
+                      "book_desc",
+                      "book_title"
+                  ]
+              }
+          }
         }
+
     )
-    return res
+    for res in result['hits']['hits']:
+        print(res['_score'])
+    return result
 
-def cosine_similarity_search(search_term):
-    # v = TfidfVectorizer()
-    # search_term = [search_term]
-    # query_vec = v.fit_transform(search_term)
-    # query_vec = query_vec.toarray()
-
-    # query_vec = np.asarray(model([search_term])).tolist()
-    query_vec = "asd"
-    res = es.search(
-        index="books",
-        size=20,
+def search_in_elasticsearch_with_tf_idf(search_term):
+    result = es.search(
+        index="books_tf_idf",
         body={
-            "query": {
-                "script_score": {
-                    "query": {
-                        "match_all": {}
-                    },
-                    "script": {
-                        "source": "cosineSimilarity(params.query_vector, 'desc_vec_dense') + 1.0",
-                        "params": {"query_vector": query_vec}
+          "query": {
+              "multi_match": {
+                  "query": search_term,
+                  "fields": [
+                      "book_authors",
+                      "book_desc",
+                      "book_title"
+                  ]
+              }
+          }
+        }
+
+    )
+    for res in result['hits']['hits']:
+        print(res['_score'])
+    return result
+
+def search_in_elasticsearch_with_universal_index(search_term):
+    query_vector = np.squeeze(np.asarray(model([search_term])))
+    s_body = {
+        "query": {
+            "script_score": {
+                "query": {
+                    "match_all": {}
+                },
+                "script": {
+                    "source": "cosineSimilarity(params.queryVector, 'desc_vec_dense') + 1.0",
+                    "params": {
+                        "queryVector": query_vector
                     }
                 }
             }
         }
-    )
-    return res
+    }
+
+    # Semantic vector search with cosine similarity
+    result = es.search(index=universal_index_name, body=s_body)
+    for res in result['hits']['hits']:
+        print(res['_score'])
+    return result
 
 
-upload_books_tf_idf()
-# print(cosine_similarity_search("Harry Potter"))
+# upload_to_default_index()
+# upload_to_elasticsearch_with_tf_idf()
 
-# process_books()
+# search_in_elasticsearch_with_tf_idf("Magic school")
+# print('-----------------------------------------------------')
+# # upload_to_elasticsearch_with_universal()
+# search_in_elasticsearch_with_universal_index("Magic school")
+
+# df = preprocessing.read_csv('book_data.csv')
+# df = preprocessing.drop_columns(df)
+# df = preprocessing.remove_not_null(df)
+# df = preprocessing.remove_non_english_words(df)
+# df = preprocessing.drop_no_english_sentences(df) # language detect
+# df = preprocessing.remove_stopwords_lemmetize(df)
+# df = preprocessing.save_to_csv(df, "./preprocessed_book_data_final.csv")
+
+term = 'The book with a school of magic where wizards study?'
+search_in_elasticsearch_with_default_index(term)
+print('-----------------------------------------------------')
+
+search_in_elasticsearch_with_tf_idf(term)
+print('-----------------------------------------------------')
+
+search_in_elasticsearch_with_universal_index(term)
