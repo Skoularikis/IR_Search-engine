@@ -4,8 +4,6 @@ import elasticsearch_operations
 
 app = Flask(__name__)
 # Load configs
-app.config.from_object('config.Config')
-app.config['DEBUG']=True
 es = Elasticsearch([{'host': 'localhost', 'port': '9200'}])
 
 
