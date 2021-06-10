@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Pacifico">
+    <link rel="icon" href="http://obj-cache.cloud.ruanbekker.com/favicon.ico">
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+
+    <title>Bookmarks Search</title>
+
+  </head>
+  <body>
+
+  <div class="container">
+    <div style="background:transparent !important" class="jumbotron">
+      <div style="font-family: 'Pacifico', cursive;">
+        <p>
+          <center>
+          <font size="8">Search for Books</font>
+          </center>
+        </p>
+      </div>
+    </div>
+
+  <form action="/book_results" method="post">
+    <div class="input-group">
+      <input type="text" class="form-control input-lg" name="input" placeholder="Search for books" autofocus>
+      <div class="input-group-btn">
+        <button class="btn btn-primary btn-lg" type="submit">
+          <i class="glyphicon glyphicon-search"></i>
+        </button>
+      </div>
+    </div>
+  </form>
+
+    <center>
+      <h2>Results with default functionality(BM25) for the term: </h2>
+      <h3><b>'{{search_term}}'</b></h3>
+  </center>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Index</th>
+        <th>Book Author</th>
+        <th>Book Title</th>
+        <th>Book Description</th>
+        <th>Tags</th>
+      </tr>
+    </thead>
+
+{% for hit in res_default['hits']['hits'][:7] %}
+    <tbody>
+      <tr>
+        <th scope="row">{{ hit['_source']['index'] }}</th>
+          <td>{{ hit['_source']['book_authors'] }}</td>
+          <td>{{ hit['_source']['book_title'] }}</td>
+          <td>{{ hit['_source']['book_desc_original'] }}</a></td>
+          <td>{{ hit['_source']['genres'] }}</td>
+      </tr>
+    </tbody>
+{% endfor %}
+
+  </table>
+
+  <center>
+      <h2>Results with tf-idf for the term: </h2>
+      <h3><b>'{{search_term}}'</b></h3>
+  </center>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Index</th>
+        <th>Book Author</th>
+        <th>Book Title</th>
+        <th>Book Description</th>
+        <th>Tags</th>
+      </tr>
+    </thead>
+
+{% for hit in res['hits']['hits'][:7] %}
+    <tbody>
+      <tr>
+        <th scope="row">{{ hit['_source']['index'] }}</th>
+          <td>{{ hit['_source']['book_authors'] }}</td>
+          <td>{{ hit['_source']['book_title'] }}</td>
+          <td>{{ hit['_source']['book_desc_original'] }}</a></td>
+          <td>{{ hit['_source']['genres'] }}</td>
+      </tr>
+    </tbody>
+{% endfor %}
+
+  </table>
+
+
+
+  <center>
+      <h2>Results with universal sentence encoder for the term:</h2>
+      <h3><b>'{{search_term}}'</b></h3>
+  </center>
+      <table class="table">
+    <thead>
+      <tr>
+        <th>Index</th>
+        <th>Book Author</th>
+        <th>Book Title</th>
+        <th>Book Description</th>
+        <th>Tags</th>
+      </tr>
+    </thead>
+
+{% for hit in res_universal['hits']['hits'][:7] %}
+    <tbody>
+      <tr>
+        <th scope="row">{{ hit['_source']['index'] }}</th>
+          <td>{{ hit['_source']['book_authors'] }}</td>
+          <td>{{ hit['_source']['book_title'] }}</td>
+          <td>{{ hit['_source']['book_desc_original'] }}</a></td>
+          <td>{{ hit['_source']['genres'] }}</td>
+      </tr>
+    </tbody>
+{% endfor %}
+
+  </table>
+
+        <footer class="footer">
+          <p>&copy; 2021 Group L </p>
+        </footer>
+
+      </div>
+    </div>
+  </body>
+</html>
