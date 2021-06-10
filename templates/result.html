@@ -34,9 +34,14 @@
     </div>
   </form>
 
+<<<<<<< HEAD
   <center>
       <h2>Results for the term <b>'{{search_term}}'</b> </h2>
       <h4>Number of results: ({{ res['hits']['total']['value'] }}) </h4>
+=======
+    <center>
+      <h2>Results with default functionality(BM25) for the term: </h2>
+      <h3><b>'{{search_term}}'</b></h3>
   </center>
 
   <table class="table">
@@ -50,17 +55,91 @@
       </tr>
     </thead>
 
-{% for hit in res['hits']['hits'] %}
+{% for hit in res_default['hits']['hits'][:7] %}
     <tbody>
       <tr>
         <th scope="row">{{ hit['_source']['index'] }}</th>
           <td>{{ hit['_source']['book_authors'] }}</td>
           <td>{{ hit['_source']['book_title'] }}</td>
-          <td>{{ hit['_source']['book_desc'] }}</a></td>
+          <td>{{ hit['_source']['book_desc_original'] }}</a></td>
           <td>{{ hit['_source']['genres'] }}</td>
       </tr>
     </tbody>
 {% endfor %}
+
+  </table>
+
+  <center>
+      <h2>Results with tf-idf for the term: </h2>
+      <h3><b>'{{search_term}}'</b></h3>
+>>>>>>> latest_version
+  </center>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Index</th>
+        <th>Book Author</th>
+        <th>Book Title</th>
+        <th>Book Description</th>
+        <th>Tags</th>
+      </tr>
+    </thead>
+
+<<<<<<< HEAD
+{% for hit in res['hits']['hits'] %}
+=======
+{% for hit in res['hits']['hits'][:7] %}
+    <tbody>
+      <tr>
+        <th scope="row">{{ hit['_source']['index'] }}</th>
+          <td>{{ hit['_source']['book_authors'] }}</td>
+          <td>{{ hit['_source']['book_title'] }}</td>
+          <td>{{ hit['_source']['book_desc_original'] }}</a></td>
+          <td>{{ hit['_source']['genres'] }}</td>
+      </tr>
+    </tbody>
+{% endfor %}
+
+  </table>
+
+
+
+  <center>
+      <h2>Results with universal sentence encoder for the term:</h2>
+      <h3><b>'{{search_term}}'</b></h3>
+  </center>
+      <table class="table">
+    <thead>
+      <tr>
+        <th>Index</th>
+        <th>Book Author</th>
+        <th>Book Title</th>
+        <th>Book Description</th>
+        <th>Tags</th>
+      </tr>
+    </thead>
+
+{% for hit in res_universal['hits']['hits'][:7] %}
+>>>>>>> latest_version
+    <tbody>
+      <tr>
+        <th scope="row">{{ hit['_source']['index'] }}</th>
+          <td>{{ hit['_source']['book_authors'] }}</td>
+          <td>{{ hit['_source']['book_title'] }}</td>
+<<<<<<< HEAD
+          <td>{{ hit['_source']['book_desc'] }}</a></td>
+=======
+          <td>{{ hit['_source']['book_desc_original'] }}</a></td>
+>>>>>>> latest_version
+          <td>{{ hit['_source']['genres'] }}</td>
+      </tr>
+    </tbody>
+{% endfor %}
+<<<<<<< HEAD
+=======
+
+>>>>>>> latest_version
   </table>
 
         <footer class="footer">
